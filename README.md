@@ -31,8 +31,8 @@ print(soundex.encode("Azhagiri"))   # A7467
 print(soundex.encode("Alagiri"))    # A7467
 
 # Longer codes for better precision
-print(soundex.encode("Venkatesh", extended=True))     # V52360
-print(soundex.encode("Venkateshwaran", extended=True)) # V5236617
+print(soundex.encode("Venkatesh", length=8))     # V5230000
+print(soundex.encode("Venkateshwaran", length=8)) # V5236617
 
 # Extended mode for detailed encoding
 print(soundex.encode("Bharath", extended=True))  # B7633
