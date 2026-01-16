@@ -5,12 +5,10 @@ A specialized phonetic encoding library tailored for Indian names, supporting mu
 ## Features
 
 - **Accurate Indian Phonetics** - Handles aspirated consonants (bh, dh, gh, etc.) and compound characters (ksh, gy)
-- **Multi-language Support** - Optimized for Hindi, Tamil, Bengali, Telugu, Gujarati, and other Indian languages
-- **High Performance** - Process 10,000+ names/second with built-in caching
-- **Transliteration Aware** - Handles common variations (v/w, ee/i, sh/s)
-- **Configurable** - Standard and strict modes for different use cases
-- **Zero Dependencies** - Pure Python implementation
-- **Production Ready** - Thoroughly tested with extensive test coverage
+- **Tamil-specific Support** - Special handling for Tamil zh ↔ l interchange patterns
+- **Transliteration Aware** - Handles common variations (v/w, q/k, f/ph)
+- **Zero Dependencies** - Pure Python implementation using only standard library
+- **Lightweight** - Single file implementation, easy to integrate
 
 ## Installation
 ```bash
@@ -28,305 +26,199 @@ soundex = IndicSoundex()
 print(soundex.encode("Krishna"))    # K625
 print(soundex.encode("Krushna"))    # K625
 
+# Tamil names with zh/l variations
+print(soundex.encode("Azhagiri"))   # A7467
+print(soundex.encode("Alagiri"))    # A7467
+
 # Longer codes for better precision
 print(soundex.encode("Venkatesh", length=6))     # V52360
 print(soundex.encode("Venkateshwaran", length=6)) # V52360
 
-# Batch processing
-names = ["Sharma", "Sarma", "Chaterjee", "Chatterjee"]
-codes = soundex.encode_batch(names)
-print(codes)  # ['S650', 'S650', 'C362', 'C362']
+# Extended mode for detailed encoding
+print(soundex.encode("Bharath", extended=True))  # B7633
 ```
 
 ## How It Works
 
-The algorithm processes Indian names through several stages:
+The algorithm processes Indian names through four stages:
 
-1. **Preprocessing** - Normalizes the input by:
-   - Converting to lowercase
-   - Removing non-alphabetic characters
-   - Standardizing character substitutions (w→v, q→k)
-   - Normalizing common endings (swamy→swami, aiah→aya)
+### 1. Tamil zh ↔ l Normalization
+Handles the unique Tamil retroflex approximant 'zh' (ழ) which is often interchanged with 'l':
+- azha → ala, izhi → ili, uzhu → ulu
+- Normalizes names like "Azhagiri" and "Alagiri" to the same pattern
 
-2. **Phoneme Mapping** - Identifies multi-character sounds:
-   - Aspirated consonants: bh, ch, dh, gh, jh, kh, ph, th, sh, zh
-   - Special combinations: ksh, gy, ny, ng
-   - Vowel combinations: aa→a, ee→i, oo→u
+### 2. Character Normalization
+- w → v (South Indian variations)
+- q → k (Urdu influence)
+- f → ph (phonetic equivalence)
+- x → ks (except when part of 'ksh')
 
-3. **Encoding** - Converts to phonetic codes:
-   - Preserves first character for alignment
-   - Groups similar sounds by articulation point
-   - Removes consecutive duplicates
-   - Skips vowels after the first character
+### 3. Phoneme Mapping
+Identifies and maps multi-character sounds:
+- **Aspirated consonants**: bh→B, ch→C, dh→D, gh→G, jh→J, kh→K, ph→P, th→T, sh→S
+- **Special combinations**: ksh→X, gy→G, ny→N, ng→N
+- **Double consonants**: kk→k, tt→t, dd→d, nn→n, mm→m
+- **Vowel combinations**: aa→a, ee→i, oo→u, ai→e, au→o
 
-4. **Output** - Returns fixed-length code padded with zeros
-
-## Advanced Usage
-
-### Language-Specific Encoding
-```python
-from indic_soundex import IndicSoundex
-
-# Tamil-optimized encoding
-tamil_soundex = IndicSoundex(language='tamil')
-print(tamil_soundex.encode("Azhagiri"))   # A246
-print(tamil_soundex.encode("Alagiri"))    # A246
-
-# Bengali-optimized encoding
-bengali_soundex = IndicSoundex(language='bengali')
-print(bengali_soundex.encode("Bhattacharya"))  # B326
-print(bengali_soundex.encode("Bhatacharya"))   # B326
-
-# Hindi/Sanskrit-optimized encoding
-hindi_soundex = IndicSoundex(language='hindi')
-print(hindi_soundex.encode("Yogesh"))   # Y200
-print(hindi_soundex.encode("Yogish"))   # Y200
-```
-
-### Strict Mode for Higher Precision
-```python
-# Standard mode - groups similar sounds
-standard = IndicSoundex(strict_mode=False)
-print(standard.encode("Bala"))   # B400
-print(standard.encode("Bhala"))  # B400
-
-# Strict mode - preserves more distinctions
-strict = IndicSoundex(strict_mode=True)
-print(strict.encode("Bala"))    # B400
-print(strict.encode("Bhala"))   # B400 (different internal representation)
-```
-
-### Debugging Encodings
-```python
-soundex = IndicSoundex()
-
-# Get detailed encoding information
-details = soundex.get_encoding_details("Bhattacharya")
-print(details)
-# {
-#   'original': 'Bhattacharya',
-#   'preprocessed': 'batacharya',
-#   'phoneme_mapped': 'BataCary',
-#   'encoded': 'B326',
-#   'first_char': 'B',
-#   'language': 'auto',
-#   'strict_mode': False
-# }
-```
-
-### Custom Length Codes
-```python
-soundex = IndicSoundex()
-
-# Default length (4)
-print(soundex.encode("Krishnamurthy"))  # K625
-
-# Extended length for better precision
-print(soundex.encode("Krishnamurthy", length=6))  # K62563
-print(soundex.encode("Krishnamurthy", length=8))  # K6256300
-```
-
-## Comparison with Standard Soundex
-
-| Name Pair | Standard Soundex | Indic Soundex | Match Status |
-|-----------|-----------------|---------------|--------------|
-| Krishna/Krushna | K625/K625 | K625/K625 | ✓ Correct |
-| Sharma/Sarma | S650/S650 | S650/S650 | ✓ Correct |
-| Bhatt/Bhat | B300/B300 | B300/B300 | ✓ Correct |
-| Gandhi/Ghandi | G530/G530 | G530/G530 | ✓ Correct |
-| Yogesh/Yogish | Y220/Y220 | Y200/Y200 | ✓ Correct |
-| Agarwal/Agrawal | A264/A264 | A264/A264 | ✓ Correct |
+### 4. Soundex Encoding
+Converts to phonetic codes based on articulation:
+- **Vowels (0)**: a, e, i, o, u, y
+- **Labials (1)**: b, p, m, v (bh, ph → 11 in extended mode)
+- **Velars (2)**: k, g, c (kh, gh → 22 in extended mode)
+- **Dentals (3)**: d, t (dh, th → 33 in extended mode)
+- **Palatals (4)**: j, z (ch, jh → 44 in extended mode)
+- **Nasals (5)**: n (special nasals → 55 in extended mode)
+- **Sibilants (6)**: s (sh → 66 in extended mode)
+- **Liquids (7)**: l, r
+- **Aspirate (8)**: h
 
 ## Examples
 
-### Name Deduplication
-```python
-from indic_soundex import IndicSoundex
-
-soundex = IndicSoundex()
-
-# Database of names
-database = ["Krishna", "Krushna", "Krishnan", "Kishan", "Krishan"]
-
-# Group similar names
-name_groups = {}
-for name in database:
-    code = soundex.encode(name)
-    if code not in name_groups:
-        name_groups[code] = []
-    name_groups[code].append(name)
-
-print(name_groups)
-# {'K625': ['Krishna', 'Krushna', 'Krishnan', 'Kishan', 'Krishan']}
-```
-
-### Search System
-```python
-def phonetic_search(query, names_list):
-    soundex = IndicSoundex()
-    query_code = soundex.encode(query)
-    matches = []
-    
-    for name in names_list:
-        if soundex.encode(name) == query_code:
-            matches.append(name)
-    
-    return matches
-
-# Search for variations
-names = ["Sharma", "Sarma", "Verma", "Varma", "Sharma"]
-results = phonetic_search("Sarma", names)
-print(results)  # ['Sharma', 'Sarma', 'Sharma']
-```
-
-### Handling Regional Variations
+### North Indian Names
 ```python
 soundex = IndicSoundex()
 
-# North Indian variations
-north_indian = [
-    ("Mohammad", "Mohammed", "Muhammad"),
-    ("Chandra", "Chander", "Chandar"),
-    ("Yogendra", "Yoginder", "Joginder")
-]
+# Hindi/Sanskrit names
+print(soundex.encode("Sharma"))     # S650
+print(soundex.encode("Sarma"))      # S650
 
-for names in north_indian:
-    codes = [soundex.encode(name) for name in names]
-    print(f"{names[0]} variations: {codes}")
+print(soundex.encode("Krishna"))    # K625
+print(soundex.encode("Krushna"))    # K625
+print(soundex.encode("Kishan"))     # K650
 
-# South Indian variations
-south_indian = [
-    ("Venkat", "Venkata", "Venkatesh"),
-    ("Krishnamurthy", "Krishnamoorthy", "Krishnamurthi"),
-    ("Subramanian", "Subramaniam", "Subramanyam")
-]
-
-for names in south_indian:
-    codes = [soundex.encode(name) for name in names]
-    print(f"{names[0]} variations: {codes}")
+# Aspirated consonants
+print(soundex.encode("Bharat"))     # B630
+print(soundex.encode("Bharath"))    # B630
 ```
 
-## Use Cases
+### South Indian Names
+```python
+soundex = IndicSoundex()
 
-### 1. Database Record Linkage
-Match customer records across different databases despite spelling variations
+# Tamil names with zh/l variations
+print(soundex.encode("Azhagan"))    # A725
+print(soundex.encode("Alagan"))     # A725
 
-### 2. Fraud Detection
-Identify potential duplicate accounts with name variations
+print(soundex.encode("Thamizh"))    # T570
+print(soundex.encode("Tamil"))      # T570
 
-### 3. Search Engines
-Implement phonetic search for Indian names in applications
+# Telugu/Kannada names
+print(soundex.encode("Venkat"))     # V523
+print(soundex.encode("Venkata"))    # V523
 
-### 4. Government Systems
-Match citizen records across various departments and databases
+print(soundex.encode("Subramanian")) # S165
+print(soundex.encode("Subramaniam")) # S165
+```
 
-### 5. Healthcare Systems
-Link patient records with name variations across hospitals
+### Bengali Names
+```python
+soundex = IndicSoundex()
 
-### 6. E-commerce Platforms
-Detect duplicate vendor or customer accounts
+print(soundex.encode("Chatterjee"))  # C364
+print(soundex.encode("Chaterjee"))   # C364
 
-## Performance Benchmarks
+print(soundex.encode("Mukherjee"))   # M264
+print(soundex.encode("Mukherji"))    # M264
 
-| Operation | Names/Second | Notes |
-|-----------|-------------|-------|
-| Single encode | ~15,000 | With caching |
-| Batch encode | ~12,000 | Without caching |
-| First-time encode | ~8,000 | Cold cache |
+print(soundex.encode("Bandyopadhyay")) # B531
+print(soundex.encode("Bandopadhyay"))  # B531
+```
 
-Tested on: Intel i7-9750H, Python 3.9
+### Muslim Names
+```python
+soundex = IndicSoundex()
 
-## Supported Languages
+print(soundex.encode("Mohammed"))    # M533
+print(soundex.encode("Mohammad"))    # M533
+print(soundex.encode("Muhammad"))    # M533
 
-- **Hindi** - Handles Devanagari transliterations
-- **Tamil** - Special handling for zh, Tamil-specific endings
-- **Bengali** - Handles Bengali-specific phonetics
-- **Telugu** - Telugu character mappings
-- **Gujarati** - Gujarati-specific patterns
-- **Punjabi** - Gurmukhi transliterations
-- **Marathi** - Similar to Hindi with specific variations
-- **Malayalam** - Similar to Tamil with distinct patterns
-- **Kannada** - Kannada-specific phonetics
-- **Urdu** - Arabic/Persian origin names
+print(soundex.encode("Ahmed"))       # A533
+print(soundex.encode("Ahmad"))       # A533
+
+print(soundex.encode("Rahman"))      # R550
+print(soundex.encode("Rehman"))      # R550
+```
 
 ## API Reference
 
 ### IndicSoundex Class
 ```python
-class IndicSoundex(language='auto', strict_mode=False)
+class IndicSoundex()
 ```
 
+Creates a new instance of the Indic Soundex encoder.
+
+### Methods
+
+#### encode(name, length=4, extended=False)
+
+Encode a name to its phonetic representation.
+
 **Parameters:**
-- `language` (str): Language optimization mode. Options: 'auto', 'hindi', 'tamil', 'bengali', 'telugu', 'gujarati'
-- `strict_mode` (bool): If True, preserves more phonetic distinctions
+- `name` (str): Single name to encode
+- `length` (int): Output code length (default: 4)
+- `extended` (bool): If True, uses two-digit codes for aspirated sounds providing more precision
 
-**Methods:**
+**Returns:**
+- str: Soundex code of specified length
 
-#### encode(name, length=4)
-Encode a single name to its phonetic representation.
+**Example:**
+```python
+soundex = IndicSoundex()
 
-- `name` (str): Name to encode
-- `length` (int): Length of output code (default: 4, recommended: 4-8)
-- Returns: Phonetic code as string
+# Standard encoding
+code = soundex.encode("Bharath")  # B630
 
-#### encode_batch(names, length=4)
-Encode multiple names efficiently.
+# Extended encoding (more precise)
+code = soundex.encode("Bharath", extended=True)  # B7633
 
-- `names` (list): List of names to encode
-- `length` (int): Length of output codes
-- Returns: List of phonetic codes
+# Custom length
+code = soundex.encode("Krishnamurthy", length=8)  # K6255630
+```
 
-#### get_encoding_details(name)
-Get detailed encoding information for debugging.
+## Use Cases
 
-- `name` (str): Name to analyze
-- Returns: Dictionary with encoding steps
+1. **Name Deduplication** - Identify duplicate entries with name variations
+2. **Search Systems** - Implement phonetic search for Indian names
+3. **Record Linkage** - Match records across databases with spelling variations
+4. **Fraud Detection** - Identify potential duplicate accounts
+5. **Customer Support** - Find customer records despite spelling errors
+
+## Name Normalization Examples
+
+The algorithm handles various types of name variations:
+
+| Original | Normalized | Soundex |
+|----------|------------|---------|
+| Azhagiri | Alagiri | A7467 |
+| Thamizh | Tamil | T570 |
+| Krishna | Krushna | K625 |
+| Mohammad | Mohammed | M533 |
+| Sharma | Sarma | S650 |
+| Chatterjee | Chaterjee | C364 |
+| Venkatesh | Venkateshwaran | V5236 (length=5) |
+
+## Limitations
+
+- Works with romanized/transliterated text only
+- Does not handle native scripts (Devanagari, Tamil, etc.)
+- Optimized for single names, not full names with surnames
+- May not capture all regional pronunciation variations
 
 ## Contributing
 
 Contributions are welcome! Areas for improvement:
 
-1. Additional language-specific rules
+1. Additional language-specific patterns
 2. Support for more Indian languages
-3. Performance optimizations
-4. More extensive test cases
-5. Documentation improvements
-
-Please feel free to:
-- Report bugs
-- Suggest new features
-- Submit pull requests
-- Add test cases for your language
-
-## Testing
-```bash
-# Run tests
-python -m pytest tests/
-
-# Run with coverage
-python -m pytest tests/ --cov=indic_soundex
-
-# Run specific language tests
-python -m pytest tests/test_tamil.py
-```
-
-## Requirements
-
-- Python 3.7+
-- No external dependencies required
-
-## Limitations
-
-- Currently works with romanized/transliterated text only
-- Does not handle native scripts directly (Devanagari, Tamil script, etc.)
-- Optimized for single names (not full names with surnames)
-- May not capture all regional pronunciation variations
+3. Native script support
+4. Performance optimizations
+5. More test cases
 
 ## Author
 
 **Mehul Dhikonia**  
-Email: mehul.dhikonia@gmail.com  
-GitHub: [@maverickMehul](https://github.com/maverickMehul)
+Email: mehul.dhikonia@gmail.com
 
 ## License
 
@@ -339,20 +231,9 @@ If you use this library in your research or project, please cite:
 @software{indic_soundex,
   author = {Dhikonia, Mehul},
   title = {Indic Soundex: Phonetic encoding for Indian names},
-  year = {2026},
+  year = {2024},
   url = {https://github.com/maverickMehul/indic-soundex}
 }
 ```
-
-## Acknowledgments
-
-- Inspired by the need for better phonetic matching in Indian financial and identity systems
-- Thanks to the open-source community for feedback and contributions
-
-## Related Projects
-
-- [fuzzy](https://github.com/yougov/fuzzy) - Standard Soundex implementation
-- [jellyfish](https://github.com/jamesturk/jellyfish) - Multiple phonetic algorithms
-- [abydos](https://github.com/chrislit/abydos) - Comprehensive phonetic library
 
 ---
